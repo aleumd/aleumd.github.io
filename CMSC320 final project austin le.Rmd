@@ -6,6 +6,8 @@ output: html_document
 ## Final Project on Pollution in the U.S.
 Austin Le
 
+![Image of United State Map of Air Quality Index](C:\Users\Administrator\Documents\Duy documents\UMD Spring18 (CURRENT)\CMSC320\unitedstatesAQI map.JPG)
+
 Currently in today's society pollution and the environment have been important subjects. As society continues to develop pollution continues to increases which causes a concern for climate change and and the loss of biodiversity. Mine and your opinions on climate change and biodiversity are our own, but I have provided some articles to provide more background on the effects of pollution and definitions of climate change and biodiversity. For this tutorial we will be looking at a dataset that provides us with the U.S.'s pollution statistics from 2000-2016 taken from the EPA's website.
 
 ## Background information
@@ -13,8 +15,14 @@ https://www.epa.gov/clean-air-act-overview/air-pollution-current-and-future-chal
 https://en.wikipedia.org/wiki/Biodiversity  
 https://climate.nasa.gov/  
 https://airnow.gov/index.cfm?action=aqibasics.aqi  
-
-
+  
+##Pollutants we will be observing  
+http://www.environment.gov.au/protection/publications/factsheet-sulfur-dioxide-so2  
+https://www.epa.gov/ozone-pollution  
+https://www.epa.gov/co-pollution  
+https://www.epa.gov/no2-pollution  
+  
+  
 ## Steps for this tutorial:
 We will be walking through the entire dat science pipeline.  
 1) Data Curation, Parsing, and Management    
@@ -44,8 +52,8 @@ There are only certain variables that we wish to look at to do an analysis of po
 
 ```{r removing columns}
 #We'll take a look at our data 
-head(pollution_tab)
-#
+pollution_tab
+
 pollution_tab <- na.omit(pollution_tab)
 #Now we'll take a look at the variable names and remove the ones we do not need
 names(pollution_tab)
@@ -78,10 +86,11 @@ pollution_avg <- aggregate(pollution_tab[, 3:10], list(pollution_tab$State, poll
 #renaming the columns
 colnames(pollution_avg)[1] = "State"
 colnames(pollution_avg)[2] = "Year"
+head(pollution_avg)
 ```
 
 ##2) Exploratory Data Analysis
-Now that we tidied our data to have clean data table, we want to perform Exploratory Data Analysis to better understand the data we have. This will help us make decisions about appropriate statistical or machine learning methods. The goal of EDA is to perform an initial exploration of attributes/variables across entities/observations.We are going to try and better understand the central trends for each pollutant and their AQI (air quality index).
+Now that we tidied our data to have clean data table, we want to perform Exploratory Data Analysis to better understand the data we have. This will help us make decisions about appropriate statistical or machine learning methods. The goal of EDA is to perform an initial exploration of attributes/variables across entities/observations.We are going to try and better understand the central trends for each pollutant and their AQI (air quality index). We can do this by utitlizing different visualization models to help better analyze/visualize our data.
 
 ##Pollutant(SO2, CO, NO2, and O3) Means over Year Line Plot
 We are now going to plot the pollutant means over year to have a visualization of our data. Our data is the table containing the mean of each pollutant for each state over each year. The aesthetic attributes is the x-axis is mapped to the variable Year and the y-axis is mapped to the Mean of each pollutant. Our geometric representation will be lines. We'll some aesthetics and have each line colored for each state. We will use R's ggplot2 package to create a line plot. There will be a line for each year and color coded with a legend. Our indepedent variable is year so that will be on the x-axis and the pollutants are the dependent variable so they will go on the y-axis. We will also have to group by state.
@@ -162,7 +171,7 @@ pollution_avg %>%
 The SO2 and CO have high variation in the early years, but the density tends to be low for SO2 and a little bit higher for CO. They both have a general trend of decreasing. CO seems to have a increasing density as the years increase but variation decreases greatly. As years increase, SO2's variation decreases and the density becomes slightly concentrated near the bottom. The violin plots for NO2 and O3 show more variation when compared to SO2 and CO. There is no general trend and we can see that NO2 varies slightly, but the variation and distribution tend to stay the same for the most part. O3 shows a little less variation than NO2, but shows more variation.  
 
 ## Map Plots 
-Another way we can analyze our data is by using a map plot of the U.S. since our data provides us with pollution from each state. We'll be using R's function geom_map to create a map of the U.S.. Since we have data from 2000-2016, we'll look at 3 years: 2000, 2008, and 2016. Any state that has pollution data provided will be colored on the map. Any state that does not have pollution data will not be colored. We will have a legend that shows for the lighter color a state is, the more pollution they produced for that year. The two boxes in the corner are for Alaska and Hawaii.
+Another way we can analyze our data is by using a map plot of the U.S. since our data provides us with pollution from each state. This will help make our data more readable, while making it more intuitive since we are looking at data of the U.S. We'll be using R's function geom_map to create a map of the U.S.. Since we have data from 2000-2016, we'll look at 3 years: 2000, 2008, and 2016. of course more years can be looked at but 8 year intervals in this case well for our data. Any state that has pollution data provided will be colored on the map. Any state that does not have pollution data will not be colored. We will have a legend that represents, the lighter the color of a state is, the more pollution they produced that year. The two boxes in the corner are for Alaska and Hawaii.
 
 Sulfer Dioxide Pollution Levels by state for the years 2000, 2008, and 2016
 ```{r}
