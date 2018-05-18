@@ -1,0 +1,529 @@
+---
+title: "CMSC320 Final Project Austin Le"
+output: html_document
+---
+
+## Final Project on Pollution in the U.S.
+Austin Le
+
+Currently in today's society pollution and the environment have been important subjects. As society continues to develop pollution continues to increases which causes a concern for climate change and and the loss of biodiversity. Mine and your opinions on climate change and biodiversity are our own, but I have provided some articles to provide more background on the effects of pollution and definitions of climate change and biodiversity. For this tutorial we will be looking at a dataset that provides us with the U.S.'s pollution statistics from 2000-2016 taken from the EPA's website.
+
+## Background information
+https://www.epa.gov/clean-air-act-overview/air-pollution-current-and-future-challenges  
+https://en.wikipedia.org/wiki/Biodiversity  
+https://climate.nasa.gov/  
+https://airnow.gov/index.cfm?action=aqibasics.aqi  
+
+
+## Steps for this tutorial:
+We will be walking through the entire dat science pipeline.  
+1) Data Curation, Parsing, and Management    
+2) Exploratory Data Analysis  
+3) Hypothesis Testing and Machine Learning  
+4) Conclusion based on testing/results  
+
+## 1) Data Curation
+The first step of this tutorial is data curation, parsing, and management. As with this tutorial, we will be focusing on pollution in the U.S., so we will import a dataset in the form of a csv file from this link: https://www.kaggle.com/sogun3/uspollution/data. Depending on what kind of analysis you want to do on your data you will have to parse and manage it accordingly. There may be information that you don't need and can be removed, NaN values that you will have to decide how to handle, column headers are values, not variable names (gather), multiple variables stored in one column (split), and the list goes on.The data before you clean it can be considered messy data. There are many different techniques that you can use to parse and manage your data, but we will be using the concept of tidy data. The links below will give you more information on tidy data.
+
+https://vita.had.co.nz/papers/tidy-data.pdf  
+http://www.hcbravo.org/IntroDataSci/bookdown-notes/tidying-data.html  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, messages = FALSE)
+```
+
+```{r import data}
+library(tidyverse)
+#We will be using R's read_csv function from the readr library to read our csv file to create a dataframe. We'll call head on our df to take a look at the data.
+
+pollution_tab <- read_csv("C:/Users/Administrator/Documents/Duy documents/UMD Spring18 (CURRENT)/CMSC320/pollution_us_2000_2016.csv")
+
+```
+First we will decide how to deal with NaNs in the data. There are methods such as speaking with the people that collected the data to see if the values matter or if you can drop them, you can assign a variable for all the NaNs, or possibly calculate the mean of other data and substitute it in. For our purposes, we are going to drop all NaN value with the r function na.omit.
+There are only certain variables that we wish to look at to do an analysis of pollution in the U.S.. We want to look at the states, the date of collection, and data on the three gases that contribute to pollution: NO2, O3, and CO. Looking at the table, we are interested in these variables: State, Date Local, NO2 Mean, NO2 AQI, 03 Mean, O3 AQI, SO2 Mean, SO2 AQI, CO mean, and CO AQI. We can drop the rest of the variables in the table to only keep the necessary information.
+
+```{r removing columns}
+#We'll take a look at our data 
+head(pollution_tab)
+#
+pollution_tab <- na.omit(pollution_tab)
+#Now we'll take a look at the variable names and remove the ones we do not need
+names(pollution_tab)
+pollution_tab <- pollution_tab[-c(1:5,7:8,10,12:13,15,17:18,20,22:23,25,27:28)]
+```
+
+Another way we can tidy data is change all the state names to their abbreviations, so that when we graph them later on readability will be much better. The units for O3 and CO are in parts per million however, the units for NO2 and SO2 are in parts per billion so we are going to multiply all the mean values of O3 and CO by 1000 to have a standard unit of parts per billion. This way our analysis of data will be correct since we are compaing the same units for all pollutants.
+```{r}
+pollution_tab$State <- state.abb[match(pollution_tab$State,state.name)]
+pollution_tab$'O3 Mean' <- pollution_tab$'O3 Mean'*1000
+pollution_tab$'CO Mean' <- pollution_tab$'CO Mean'*1000
+```
+
+The dataframe also provides us with the full date of each collection, however we are only interested in the pollution by year. We will extract only the year from the datetime and drop the day and month.
+```{r}
+pollution_tab$"Date Local" <- format(as.Date(pollution_tab$"Date Local", format="%d/%m/%Y"),"%Y")
+```
+
+```{r}
+#Renaming the column to Year
+colnames(pollution_tab)[2] <- "Year"
+names(pollution_tab)
+head(pollution_tab)
+```
+
+Now we will take the average of each of pollutant (NO2, O3, SO2, and CO) per state per year and put that into a dataframe called pollution_avg. We will do this by using R's aggregate function
+```{r}
+data_avg <- aggregate(pollution_tab[, 3:10], list(pollution_tab$State), mean)
+pollution_avg <- aggregate(pollution_tab[, 3:10], list(pollution_tab$State, pollution_tab$Year), mean)
+#renaming the columns
+colnames(pollution_avg)[1] = "State"
+colnames(pollution_avg)[2] = "Year"
+```
+
+##2) Exploratory Data Analysis
+Now that we tidied our data to have clean data table, we want to perform Exploratory Data Analysis to better understand the data we have. This will help us make decisions about appropriate statistical or machine learning methods. The goal of EDA is to perform an initial exploration of attributes/variables across entities/observations.We are going to try and better understand the central trends for each pollutant and their AQI (air quality index).
+
+##Pollutant(SO2, CO, NO2, and O3) Means over Year Line Plot
+We are now going to plot the pollutant means over year to have a visualization of our data. Our data is the table containing the mean of each pollutant for each state over each year. The aesthetic attributes is the x-axis is mapped to the variable Year and the y-axis is mapped to the Mean of each pollutant. Our geometric representation will be lines. We'll some aesthetics and have each line colored for each state. We will use R's ggplot2 package to create a line plot. There will be a line for each year and color coded with a legend. Our indepedent variable is year so that will be on the x-axis and the pollutants are the dependent variable so they will go on the y-axis. We will also have to group by state.
+```{r}
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`SO2 Mean`,group=State,color=State)) + geom_line() + ggtitle("SO2 Mean Over Time") + xlab("Year") + ylab("SO2 Mean")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`CO Mean`,group=State,color=State)) + geom_line() + ggtitle("CO Mean Over Time") + xlab("Year") + ylab("CO Mean")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`NO2 Mean`,group=State,color=State)) + geom_line() + ggtitle("NO2 Mean Over Time") + xlab("Year") + ylab("NO2 Mean")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`O3 Mean`,group=State,color=State)) + geom_line() + ggtitle("O3 Mean Over Time") + xlab("Year") + ylab("O3 Mean")
+```
+##Analysis
+The general trend for SO2 mean over the years is that it is decreasing over the years or staying generally low. There was a spike in 2006 which we call a outlier, but it then dropped very quickly during the next year. The general trend for CO mean over year was that it started high for most states and then steadily decreased. There seemed to be a slight increase after the year 2016, but we do not have data to support that speculation that just seems to be the general trend. NO2 mean over year does not seem to have a general, but there was a large spike in 2016. It also seems that NO2 is generally increasing in 2016. Lastly, O3 does not have a general trend and has stayed somewhat steady throughout the years. However, approaching 2016 it seems to be slightly increasing.
+
+##AQI(Air quality index) Means over Year Line Plot
+```{r}
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`SO2 AQI`,group=State,color=State)) + geom_line() + ggtitle("SO2 AQI Over Time") + xlab("Year") + ylab("SO2 Mean")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`CO AQI`,group=State,color=State)) + geom_line() + ggtitle("CO AQI Over Time") + xlab("Year") + ylab("CO Mean")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`NO2 AQI`,group=State,color=State)) + geom_line() + ggtitle("NO2 AQI Over Time") + xlab("Year") + ylab("NO2 Mean")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`O3 AQI`,group=State,color=State)) + geom_line() + ggtitle("O3 AQI Over Time") + xlab("Year") + ylab("NO2 Mean")
+```
+
+##Analysis
+The general trend for SO2 AQI over Year is that it started generally high and then decreased over time to a very small number. The general trend for CO AQI over year is that it also started generally high and had a slow decrease. However, for some states the levels seem to be increasing again as 2016 approaches. NO2 AQI over year does not quite have a general trend except that it seems to decrease slightly, but it then increases back again as 2016 approaches. O3 AQI does have a general trend. There was a spike in 2002 (outlier), but after that some states had a decrease and some increased.
+
+##Violin Plots
+The line plots before gave us a general idea of central trends and way to visualize our data. However, line plots may be difficult to read with so many states, so we can try using a violin plot.A violin plot is used to visualize the distribution of data and its proability density. This plot is a combination of a box plot and a density plot. We will plot pollutant concentration over time and pollutant air quality index over time. Also, with violin plots, instead of looking at pollution means and AQI means from each state we will be looking at the pollution means and AQI means as a whole for the U.S.. Below are some links for more information on violin plots.  
+https://blog.modeanalytics.com/violin-plot-examples/  
+https://en.wikipedia.org/wiki/Violin_plot  
+
+
+##Pollutant(SO2, CO, NO2, and O3) Means over Year Violin Plot
+```{r}
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`SO2 Mean`)) + geom_violin() + ggtitle("SO2 Mean Over Time") + xlab("Year") + ylab("SO2 Mean")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`CO Mean`)) + geom_violin() + ggtitle("CO Mean Over Time") + xlab("Year") + ylab("CO Mean")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`NO2 Mean`)) + geom_violin() + ggtitle("NO2 Mean Over Time") + xlab("Year") + ylab("NO2 Mean")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`O3 Mean`)) + geom_violin() + ggtitle("O3 Mean Over Time") + xlab("Year") + ylab("O3 Mean")
+```  
+  
+The SO2 and CO have high variation in the early years and have a general trend of decreasing. CO also seems to have higher means. As years increase, SO2 decreases moreso than CO and there is less variation seen in both. The violin plots for NO2 and O3 show more variation when compared to SO2 and CO. There is no general trend and we can see that NO2 has stayed generally the same except that it started to increase as 2016 approached. O3 has also showen a slight increase.
+
+##AQI(Air quality index) Means over Year Violin Plot
+```{r}
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`SO2 AQI`)) + geom_violin() + ggtitle("SO2 AQI Over Time") + xlab("Year") + ylab("SO2 AQI")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`CO AQI`)) + geom_violin() + ggtitle("CO AQI Over Time") + xlab("Year") + ylab("CO AQI")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`NO2 AQI`)) + geom_violin() + ggtitle("NO2 AQI Over Time") + xlab("Year") + ylab("NO2 AQI")
+
+pollution_avg %>%
+  ggplot(mapping=aes(x=factor(Year),y=pollution_avg$`O3 AQI`)) + geom_violin() + ggtitle("O3 AQI Over Time") + xlab("Year") + ylab("O3 AQI")
+
+```
+  
+
+The SO2 and CO have high variation in the early years, but the density tends to be low for SO2 and a little bit higher for CO. They both have a general trend of decreasing. CO seems to have a increasing density as the years increase but variation decreases greatly. As years increase, SO2's variation decreases and the density becomes slightly concentrated near the bottom. The violin plots for NO2 and O3 show more variation when compared to SO2 and CO. There is no general trend and we can see that NO2 varies slightly, but the variation and distribution tend to stay the same for the most part. O3 shows a little less variation than NO2, but shows more variation.  
+
+## Map Plots 
+Another way we can analyze our data is by using a map plot of the U.S. since our data provides us with pollution from each state. We'll be using R's function geom_map to create a map of the U.S.. Since we have data from 2000-2016, we'll look at 3 years: 2000, 2008, and 2016. Any state that has pollution data provided will be colored on the map. Any state that does not have pollution data will not be colored. We will have a legend that shows for the lighter color a state is, the more pollution they produced for that year. The two boxes in the corner are for Alaska and Hawaii.
+
+Sulfer Dioxide Pollution Levels by state for the years 2000, 2008, and 2016
+```{r}
+library(ggplot2)
+library(fiftystater)
+library(dplyr)
+
+data("fifty_states") # this line is optional due to lazy data loading
+
+dataSO2_2000 <- pollution_avg %>%
+  filter(Year == 2000)
+
+dataSO2_2000$State <- tolower(state.name[match(dataSO2_2000$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataSO2_2000, aes(map_id = dataSO2_2000$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataSO2_2000$'SO2 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="SO2 Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2000 US Sulfur Dioxide Pollution Levels by State")
+p + fifty_states_inset_boxes() 
+
+dataSO2_2008 <- pollution_avg %>%
+  filter(Year == 2008)
+
+#2008 Data
+dataSO2_2008$State <- tolower(state.name[match(dataSO2_2008$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataSO2_2008, aes(map_id = dataSO2_2008$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataSO2_2008$'SO2 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="SO2 Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2008 US Sulfur Dioxide Pollution Levels by State")
+p + fifty_states_inset_boxes() 
+
+#2016 Data
+dataSO2_2016 <- pollution_avg %>%
+  filter(Year == 2016)
+
+dataSO2_2016$State <- tolower(state.name[match(dataSO2_2016$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataSO2_2016, aes(map_id = dataSO2_2016$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataSO2_2016$'SO2 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="SO2 Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2016 US Sulfur Dioxide Pollution Levels by State")
+p + fifty_states_inset_boxes()
+```  
+  
+  
+Analysis for Sulfur Dioxide Levels by State  
+In 2000, Virginia had the highest Sulfur Dioxide Concentration. In 2008, New York had the highest level. In 2016, Ohio had the highest level. We can determine this by looking how lightly colored these states are.  
+  
+
+Carbon Monoxide Pollution Levels by state for the years 2000, 2008, and 2016
+```{r}
+data("fifty_states") # this line is optional due to lazy data loading
+dataCO_2000 <- pollution_avg %>%
+  filter(Year == 2000)
+
+dataCO_2000$State <- tolower(state.name[match(dataCO_2000$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataCO_2000, aes(map_id = dataCO_2000$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataCO_2000$'CO Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="CO Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2000 US Carbon Monoxide Pollution Levels by State")
+p + fifty_states_inset_boxes() 
+
+#2008 Data
+dataCO_2008 <- pollution_avg %>%
+  filter(Year == 2008)
+
+dataCO_2008$State <- tolower(state.name[match(dataCO_2008$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataCO_2008, aes(map_id = dataCO_2008$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataCO_2008$'SO2 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="CO Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2008 US Carbon Monoxide Pollution Levels by State")
+p + fifty_states_inset_boxes() 
+
+#2016 Data
+dataCO_2016 <- pollution_avg %>%
+  filter(Year == 2016)
+
+dataCO_2016$State <- tolower(state.name[match(dataCO_2016$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataCO_2016, aes(map_id = dataCO_2016$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataCO_2016$'CO Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="CO Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2016 US Carbon Monoxide Pollution Levels by State")
+p + fifty_states_inset_boxes()
+```  
+  
+  
+Analysis for Carbon Monoxide Levels by State  
+In 2000, Indiana had the highest Carbon Monoxide Concentration. In 2008, Arkansas had the highest level. In 2016,  Florida had the highest level. We can determine this by looking at how lightly colored each state is.  
+  
+
+Ozone Pollution Levels by state for the years 2000, 2008, and 2016
+```{r}
+data("fifty_states") # this line is optional due to lazy data loading
+dataO3_2000 <- pollution_avg %>%
+  filter(Year == 2000)
+
+dataO3_2000$State <- tolower(state.name[match(dataO3_2000$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataO3_2000, aes(map_id = dataO3_2000$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataO3_2000$'O3 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="O3 Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2000 US Ozone Pollution Levels by State")
+p + fifty_states_inset_boxes() 
+
+#2008 Data
+dataO3_2008 <- pollution_avg %>%
+  filter(Year == 2008)
+
+dataO3_2008$State <- tolower(state.name[match(dataO3_2008$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataO3_2008, aes(map_id = dataO3_2008$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataO3_2008$'O3 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="O3 Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2008 US Ozone Pollution Levels by State")
+p + fifty_states_inset_boxes() 
+
+#2016 Data
+dataO3_2016 <- pollution_avg %>%
+  filter(Year == 2016)
+
+dataO3_2016$State <- tolower(state.name[match(dataO3_2016$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataO3_2016, aes(map_id = dataO3_2016$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataO3_2016$'O3 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="O3 Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2016 US Ozone Pollution Levels by State")
+p + fifty_states_inset_boxes()
+```  
+  
+  
+Analysis for Ozone Levels by State  
+In 2000, North Carolina had the highest Ozone Concentration. In 2008 and 2016, Wyoming had the highest level. We can determine this by seeing how lightly colored these states are.  
+  
+Nitrogen Dioxide Pollution Levels by state for the years 2000, 2008, and 2016  
+```{r}
+data("fifty_states") # this line is optional due to lazy data loading
+dataNO2_2000 <- pollution_avg %>%
+  filter(Year == 2000)
+
+dataNO2_2000$State <- tolower(state.name[match(dataNO2_2000$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataNO2_2000, aes(map_id = dataNO2_2000$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataNO2_2000$'NO2 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="NO2 Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2000 US Nitrogen Dioxide Pollution Levels by State")
+p + fifty_states_inset_boxes() 
+
+#2008 Data
+dataNO2_2008 <- pollution_avg %>%
+  filter(Year == 2008)
+
+dataNO2_2008$State <- tolower(state.name[match(dataNO2_2008$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataNO2_2008, aes(map_id = dataNO2_2008$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataNO2_2008$'NO2 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="NO2 Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2008 US Nitrogen Dioxide Pollution Levels by State")
+p + fifty_states_inset_boxes() 
+
+#2016 Data
+dataNO2_2016 <- pollution_avg %>%
+  filter(Year == 2016)
+
+dataNO2_2016$State <- tolower(state.name[match(dataNO2_2016$State,state.abb)])
+
+# map_id creates the aesthetic mapping to the state name column in your data
+p <- ggplot(dataNO2_2016, aes(map_id = dataNO2_2016$State)) + 
+  # map points to the fifty_states shape data 
+  geom_map(aes(fill = dataNO2_2016$'NO2 Mean'), map = fifty_states) + 
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) + 
+  scale_y_continuous(breaks = NULL) +
+  labs(x = "", y = "", fill="NO2 Mean") +
+  theme(legend.position = "bottom", 
+        panel.background = element_blank()) + ggtitle("2016 US Nitrogen Dioxide Pollution Levels by State")
+p + fifty_states_inset_boxes()
+```  
+  
+  
+Nitrogen Dioxide by State    
+In 2000, Arizona had the highest Nitrogen Dioxide Concentration. In 2008, Massachusetts thd highest level and in 2016 Utah had the highest level. We can determine this by seeing how lightly colored each state is.  
+  
+##Hypotheis Testing and Machine Learning
+The purpose of hypothesis testing is to determine whether there is enough statistical evidence in favor of a certain
+belief, or hypothesis, about a parameter. For our hypothesis we are going to see if there is enough evidence to show a correlation between NO2 mean and NO2 AQI. Our null hypothesis is that there is no evidence to support there is a positive correlation and our alternate hypothesis will be there is sufficient evidence. We will calculate p-values based on each pollutant to test our hypothesis. For machine learning, we can create linear models to make predictions about the future of pollutants in the U.S.. This can be useful because if we are able to predict that pollutants are getting worse in the U.S. then the government should most like update their pollutant laws to reduce the amount of pollution in the air. If we are able to predict that pollutant levels are decreasing then that means the U.S. is doing something correct in handling pollutants. We are going to create a linear model to see the relationship between the Means and AQIs of each pollutant. Then we will regress AQI on year and do another regression of AQI on Mean to see if AQI has been improving or getting worse based on the pollution in the U.S..  
+  
+Nitrogen Dioxide
+```{r}
+pollution_avg %>%
+  ggplot(aes(x=pollution_avg$'NO2 Mean',y=pollution_avg$'NO2 AQI')) + geom_point() + geom_smooth(method=lm)  + ggtitle("Nitrogen Dioxide AQI Over Nitrogen Dioxide Mean LM") + xlab("NO2 Mean") + ylab("NO2 AQI")
+
+data_avg <- aggregate(pollution_tab[, 3:10], list(pollution_tab$State), mean)
+
+NO2fit <- lm(pollution_avg$'NO2 AQI'~pollution_avg$'NO2 Mean', data=data_avg)  
+NO2fit_stat <- NO2fit %>%
+  broom::tidy()
+
+NO2yearfit <- lm(pollution_avg$'NO2 AQI'~pollution_avg$'Year', data=data_avg)  
+NO2yearfit_stat <- NO2fit %>%
+  broom::tidy()
+
+NO2fit_stat
+summary(NO2fit)
+summary(NO2yearfit)
+```  
+  
+Nitrogen Dioxide Analysis  
+Here we can see that there is a positive correlation between NO2 mean and NO2 AQI. As NO2 mean increases for parts per billion NO2 AQI will increase by about 1.54 which makes sense because if NO2 is increasing then AQI will increase meaning that the air quality gets worse. When regressing NO2 Mean on year, we can see that as year is increasing, the general trend of NO2 Mean is that it is decreasing. Some years the decrease may not be as much (such as 2015 to 2016), but for the most part there is a decrease.
+
+```{r}
+pollution_avg %>%
+  ggplot(aes(x=pollution_avg$'O3 Mean',y=pollution_avg$'O3 AQI')) + geom_point() + geom_smooth(method=lm) + theme_minimal() + ggtitle("Ozone AQI over Ozone Mean LM") + xlab("O3 Mean") + ylab("O3 AQI")
+
+data_avg <- aggregate(pollution_tab[, 3:10], list(pollution_tab$State), mean)
+
+O3fit <- lm(pollution_avg$'O3 AQI'~pollution_avg$'O3 Mean', data=data_avg) 
+O3fit
+summary(O3fit)
+
+O3fit <- lm(pollution_avg$'O3 AQI'~pollution_avg$'O3 Mean', data=data_avg)  
+O3fit_stat <- O3fit %>%
+  broom::tidy()
+
+O3yearfit <- lm(pollution_avg$'O3 AQI'~pollution_avg$'Year', data=data_avg)  
+O3yearfit_stat <- O3fit %>%
+  broom::tidy()
+
+O3fit_stat
+summary(O3fit)
+summary(O3yearfit)
+```  
+  
+Ozone Analysis  
+Here we can see that there is a positive correlation between O3 mean and O3 AQI by looking at the line of best fit. When we regress O3 AQI on O3 mean, O3 AQI increases by 1.07 for every parts per billion of O3 mean. This makes sense because if O3 mean is increasing then AQI will increase meaning that the air quality gets worse. When regressing O3 Mean on year, we can see that as year is increasing, the general trend of NO2 Mean is that it is decreasing. However, the values are slightly more volatile where some years there may be a great decrease and other years there will be a slight decrease.  
+
+```{r}
+pollution_avg %>%
+  ggplot(aes(x=pollution_avg$'SO2 Mean',y=pollution_avg$'SO2 AQI')) + geom_point() + geom_smooth(method=lm) + theme_minimal() + ggtitle("Sulfur Dioxide AQI Over Sulfur Dioide Mean LM") + xlab("SO2 Mean") + ylab("SO2 AQI")
+
+data_avg <- aggregate(pollution_tab[, 3:10], list(pollution_tab$State), mean)
+
+SO2fit <- lm(pollution_avg$'SO2 AQI'~pollution_avg$'SO2 Mean', data=data_avg)  
+SO2fit_stat <- SO2fit %>%
+  broom::tidy()
+
+SO2yearfit <- lm(pollution_avg$'SO2 AQI'~pollution_avg$'Year', data=data_avg)  
+SO2yearfit_stat <- SO2fit %>%
+  broom::tidy()
+
+SO2fit_stat
+summary(SO2fit)
+summary(SO2yearfit)
+```  
+  
+Sulfur Dioxide Analysis  
+Here we can see that there is a positive correlation between SO2 mean and SO2 AQI by looking at the line of best fit. When we regress SO2 AQI on SO2 mean, SO2 AQI increases by 3.8 for every parts per billion of SO2 mean which is much greater than when compared to the increase by O3 or NO2. This means that this pollutant is contributing more to pollution than the other pollutants we are examining. When regressing sO2 Mean on year, we can see that as year is increasing, the general trend of NO2 Mean is that it is decreasing. The decrease is steady for each year.  
+
+```{r}
+pollution_avg %>%
+  ggplot(aes(x=pollution_avg$'CO Mean',y=pollution_avg$'CO AQI')) + geom_point() + geom_smooth(method=lm) + theme_minimal() + ggtitle("Carbon Monoxide AQI Over Carbon Monoxide Mean LM") + xlab("CO Mean") + ylab("CO AQI")
+
+data_avg <- aggregate(pollution_tab[, 3:10], list(pollution_tab$State), mean)
+
+COfit <- lm(pollution_avg$'CO AQI'~pollution_avg$'CO Mean', data=data_avg)  
+COfit_stat <- COfit %>%
+  broom::tidy()
+
+COyearfit <- lm(pollution_avg$'CO AQI'~pollution_avg$'Year', data=data_avg)  
+COyearfit_stat <- COfit %>%
+  broom::tidy()
+
+COfit_stat
+summary(COfit)
+summary(COyearfit)
+```  
+  
+Carbon Monoxide Analysis  
+
+Here we can see that there is a positive correlation between CO mean and CO AQI by looking at the line of best fit. When we regress CO AQI on CO mean, CO AQI increases by about 0.0157 for every parts per billion of SO2 mean which is much less when compared to the other pollutants. This means that this pollutant is contributing the least to pollution than the other pollutants we are examining. When regressing CO Mean on year, we can see that as year is increasing, the general trend of CO Mean is that it is steadily decreasing. 
+  
+##Conclusion   
+The very small p-values calculated for the 4 pollutants, nitrogen dioxide, ozone, carbon monoxide, and sulfur dioxide, means that our data shows high significance. We can reject the null hypothesis and conclude that there is a positive correlation between the means of the pollutants and the AQI. We can also conclude that America has reduced it's pollution output from 2000-2016 because of the linear models that we have created. However, pollution levels are rising which means America should continue to implement the methods they are used to keep pollutant decreasing. There is also less variation in pollutant levels over time which indicates that the US has been regulating pollution reduction across the country and all states are following the regulations. From this specific dataset we were able to reach conclude this, but the data was highly inconsistent and was missing a lot of data which we accounted for by taking out. Not all of the states had data for all the years from 2000 - 2016 which makes it harder to make an accurate analysis. The analysis could have been much more thorough and accurate if we had every pollution level from each state for each year. Possible research that could be continued is to look at the pollution from the past current year 2017 and pollution in 2018. This could give interesting data/results on how America is handling pollution now.
